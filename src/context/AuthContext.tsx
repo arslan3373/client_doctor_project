@@ -4,7 +4,19 @@ import { authAPI } from '../services/api';
 import { User, RegisterData } from '../services/api';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { AuthContextType } from './AuthContext.types';
+
+interface AuthContextType {
+  user: User | null;
+  isAuthenticated: boolean;
+  isDoctor: boolean;
+  isPatient: boolean;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<User>;
+  register: (userData: Omit<RegisterData, 'id'>) => Promise<User>;
+  logout: () => void;
+  updateUser: (userData: Partial<User>) => Promise<User>;
+  checkAuth: () => Promise<boolean>;
+}
 
 // Create the context with a default value
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,9 +47,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const storedUser = localStorage.getItem('user');
         
         if (token && storedUser) {
-          // Optionally validate token with backend
           const parsedUser = JSON.parse(storedUser);
           setUser(parsedUser);
+          
+          // Optionally validate token with backend
+          try {
+            const response = await authAPI.getProfile();
+            if (response.data) {
+              setUser(response.data);
+              localStorage.setItem('user', JSON.stringify(response.data));
+            }
+          } catch (error) {
+            console.warn('Token validation failed, using stored user data');
+          }
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
@@ -59,9 +81,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('user');
     setUser(null);
     
-    // Redirect to login
-    navigate('/login');
-    toast.success('You have been logged out');
+    // Redirect to home
+    navigate('/');
   }, [navigate]);
 
   // Check authentication status
@@ -112,7 +133,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (userData.role === 'doctor') {
         navigate('/doctor/dashboard');
       } else {
-        navigate('/dashboard');
+        navigate('/patient/dashboard');
       }
       
       return userData;
@@ -166,13 +187,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(registeredUser);
       
       // Show success message
-      toast.success('Registration successful!');
-      
-      // Redirect based on role
       if (registeredUser.role === 'doctor') {
-        navigate('/doctor/onboarding');
+        toast.success('Doctor registration submitted! Please wait for admin approval.');
+        navigate('/doctor/dashboard');
       } else {
-        navigate('/dashboard');
+        toast.success('Registration successful! Welcome to HealthCare+');
+        navigate('/patient/dashboard');
       }
       
       return registeredUser;
@@ -181,8 +201,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let errorMessage = 'Registration failed. Please try again.';
       
       if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { data?: { message?: string } } };
-        errorMessage = axiosError.response?.data?.message || errorMessage;
+        const axiosError = error as { response?: { data?: { message?: string; error?: string } } };
+        errorMessage = axiosError.response?.data?.message || 
+                      axiosError.response?.data?.error || 
+                      errorMessage;
       }
       
       toast.error(errorMessage);
@@ -219,8 +241,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw error;
     }
   }, [user]);
-
-
 
   // Memoize the context value to prevent unnecessary re-renders
   const contextValue = React.useMemo(() => ({

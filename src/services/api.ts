@@ -74,13 +74,15 @@ export interface AppointmentData {
   patientName: string;
   date: string;
   time: string;
-  type: 'in-person' | 'video' | 'video-request';
-  status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'rejected';
+  type: 'in-person' | 'online';
+  status: 'scheduled' | 'pending' | 'confirmed' | 'completed' | 'cancelled';
   symptoms?: string;
   reason?: string;
   notes?: string;
   phone: string;
   specialization?: string;
+  isVideoRequest?: boolean;
+  videoRequest?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -98,29 +100,22 @@ export interface DoctorStats {
 export const authAPI = {
   login: (data: LoginData) => api.post<{ token: string; user: User }>('/auth/login', data),
   register: (data: RegisterData) => api.post<{ token: string; user: User }>('/auth/register', data),
-  getProfile: () => api.get<User>('/auth/me'),
+  getProfile: () => api.get<User>('/auth/profile'),
   updateProfile: (data: Partial<User>) => api.put<User>('/auth/profile', data),
 };
 
 // Appointments API
 export const appointmentsAPI = {
-  // Patient endpoints
-  createAppointment: (data: Omit<AppointmentData, 'id' | 'status' | 'createdAt' | 'updatedAt'>) => 
-    api.post<AppointmentData>('/appointments', data),
-  getMyAppointments: () => api.get<AppointmentData[]>('/appointments/me'),
-  getUpcomingAppointments: () => api.get<AppointmentData[]>('/appointments/upcoming'),
-  cancelAppointment: (id: string) => api.patch<AppointmentData>(`/appointments/${id}/cancel`),
-  
-  // Doctor endpoints
-  getDoctorAppointments(params?: { status?: string; startDate?: string; endDate?: string }) {
-    return api.get('/appointments/doctor', { params });
-  },
-  getDoctorAppointment: (id: string) => api.get<AppointmentData>(`/appointments/doctor/${id}`),
-  updateAppointment: (id: string, data: Partial<AppointmentData>) => 
-    api.patch<AppointmentData>(`/appointments/${id}`, data),
-  confirmAppointment: (id: string, data: { date?: string; time?: string; notes?: string }) =>
+  create: (data: AppointmentData) => api.post<AppointmentData>('/appointments', data),
+  getAll: () => api.get<{ data: AppointmentData[] }>('/appointments'),
+  getUpcomingAppointments: () => api.get<{ data: AppointmentData[] }>('/appointments/upcoming'),
+  getDoctorAppointments: () => api.get<AppointmentData[]>('/appointments/doctor'),
+  getById: (id: string) => api.get<AppointmentData>(`/appointments/${id}`),
+  update: (id: string, data: Partial<AppointmentData>) => api.put<AppointmentData>(`/appointments/${id}`, data),
+  cancel: (id: string) => api.patch<AppointmentData>(`/appointments/${id}/cancel`),
+  confirm: (id: string, data?: { date?: string; time?: string; notes?: string }) =>
     api.patch<AppointmentData>(`/appointments/${id}/confirm`, data),
-  completeAppointment: (id: string, notes?: string) =>
+  complete: (id: string, notes?: string) =>
     api.patch<AppointmentData>(`/appointments/${id}/complete`, { notes }),
 };
 
@@ -137,13 +132,14 @@ export const doctorAPI = {
 
 // Video API
 export const videoAPI = {
-  createRoom: (appointmentId: string) => 
-    api.post<{ roomId: string; accessToken: string }>('/video/create-room', { appointmentId }),
-  getRoom: (roomId: string) => 
-    api.get<{ roomId: string; accessToken: string; appointment: AppointmentData }>(`/video/room/${roomId}`),
-  endRoom: (roomId: string) => api.post(`/video/room/${roomId}/end`),
-  getRoomToken: (roomId: string) => 
-    api.get<{ token: string }>(`/video/room/${roomId}/token`),
+  createRoom: () => api.post<{ roomId: string }>('/video/create-room'),
+  getRoom: (roomId: string) => api.get<{ roomId: string }>(`/video/room/${roomId}`),
+  scheduleCall: (data: { appointmentId: string; patientId: string; scheduledTime: string; duration: number }) =>
+    api.post('/video/schedule', data),
+  startCall: (sessionId: string) => api.post('/video/start', { sessionId }),
+  joinCall: (sessionId: string) => api.post('/video/join', { sessionId }),
+  endCall: (sessionId: string) => api.post('/video/end', { sessionId }),
+  getSession: (sessionId: string) => api.get(`/video/session/${sessionId}`),
 };
 
 export default api;

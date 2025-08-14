@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Video, Clock, User, CheckCircle } from 'lucide-react';
-import VideoCallRoom from '../components/VideoCall/VideoCallRoom';
+import { Video, Clock, User, CheckCircle, Phone, Calendar, AlertCircle } from 'lucide-react';
+import VideoCall from '../components/VideoConsultation/VideoCall';
 import { videoAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
 
 const VideoConsultation: React.FC = () => {
   const { doctorId } = useParams();
@@ -11,6 +12,7 @@ const VideoConsultation: React.FC = () => {
   const { user } = useAuth();
   const [callState, setCallState] = useState<'waiting' | 'connecting' | 'connected' | 'ended'>('waiting');
   const [roomId, setRoomId] = useState<string>('');
+  const [loading, setLoading] = useState(false);
 
   // Mock doctor data - in real app, fetch based on doctorId
   const doctor = {
@@ -19,38 +21,65 @@ const VideoConsultation: React.FC = () => {
     specialty: 'Cardiologist',
     image: 'https://images.pexels.com/photos/5327921/pexels-photo-5327921.jpeg?auto=compress&cs=tinysrgb&w=400',
     experience: 15,
-    rating: 4.9
+    rating: 4.9,
+    consultationFee: 150
   };
 
-  const startCall = () => {
+  useEffect(() => {
+    // Check if user is authenticated
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+  }, [user, navigate]);
+
+  const startCall = async () => {
+    if (!user) {
+      toast.error('Please login to start a video call');
+      navigate('/login');
+      return;
+    }
+
+    setLoading(true);
     setCallState('connecting');
     
-    // Create video room
-    videoAPI.createRoom().then(response => {
-      setRoomId(response.data.roomId);
+    try {
+      // Create video room
+      const response = await videoAPI.createRoom();
+      const newRoomId = response.data.roomId;
+      setRoomId(newRoomId);
+      
+      // Simulate connection delay
       setTimeout(() => {
         setCallState('connected');
+        setLoading(false);
+        toast.success('Connected to video call!');
       }, 2000);
-    }).catch(error => {
+      
+    } catch (error) {
       console.error('Failed to create room:', error);
+      toast.error('Failed to start video call. Please try again.');
       setCallState('waiting');
-    });
+      setLoading(false);
+    }
   };
 
   const endCall = () => {
     setCallState('ended');
+    toast.success('Call ended successfully');
   };
 
   const goBackHome = () => {
     navigate('/');
   };
 
+  const scheduleCall = () => {
+    navigate(`/booking/${doctorId}?type=video`);
+  };
+
   if (callState === 'connected') {
     return (
-      <VideoCallRoom
-        roomId={roomId}
-        userId={user?.id || 'anonymous'}
-        userName={user?.name || 'Anonymous'}
+      <VideoCall
         doctorName={doctor.name}
         doctorImage={doctor.image}
         onEndCall={endCall}
@@ -86,10 +115,49 @@ const VideoConsultation: React.FC = () => {
                 <div className="flex-1">
                   <h2 className="text-2xl font-bold text-gray-900 mb-1">{doctor.name}</h2>
                   <p className="text-blue-600 font-semibold mb-2">{doctor.specialty}</p>
-                  <div className="flex items-center space-x-4 text-sm text-gray-600">
+                  <div className="flex items-center space-x-4 text-sm text-gray-600 mb-4">
                     <span>{doctor.experience} years experience</span>
                     <span>★ {doctor.rating} rating</span>
                   </div>
+                  <div className="text-lg font-bold text-green-600">
+                    ${doctor.consultationFee} consultation fee
+                  </div>
+                </div>
+              </div>
+
+              {/* Call Options */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div className="bg-green-50 rounded-xl p-6 border border-green-200">
+                  <div className="flex items-center mb-4">
+                    <Video className="w-8 h-8 text-green-600 mr-3" />
+                    <h3 className="text-lg font-semibold text-gray-900">Instant Video Call</h3>
+                  </div>
+                  <p className="text-gray-600 mb-4">
+                    Start an immediate video consultation with the doctor if available.
+                  </p>
+                  <button
+                    onClick={startCall}
+                    disabled={loading}
+                    className="w-full bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? 'Connecting...' : 'Start Instant Call'}
+                  </button>
+                </div>
+
+                <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
+                  <div className="flex items-center mb-4">
+                    <Calendar className="w-8 h-8 text-blue-600 mr-3" />
+                    <h3 className="text-lg font-semibold text-gray-900">Schedule Video Call</h3>
+                  </div>
+                  <p className="text-gray-600 mb-4">
+                    Book a scheduled video consultation at a convenient time.
+                  </p>
+                  <button
+                    onClick={scheduleCall}
+                    className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                  >
+                    Schedule Appointment
+                  </button>
                 </div>
               </div>
 
@@ -140,17 +208,18 @@ const VideoConsultation: React.FC = () => {
                 </div>
               </div>
 
-              {/* Start Call Button */}
-              <div className="text-center">
-                <button
-                  onClick={startCall}
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-12 py-4 rounded-xl font-semibold text-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 transform hover:scale-105 shadow-lg"
-                >
-                  Start Video Consultation
-                </button>
-                <p className="text-sm text-gray-600 mt-4">
-                  The consultation will begin once you click the button
-                </p>
+              {/* Emergency Notice */}
+              <div className="bg-red-50 rounded-xl p-6 border border-red-200">
+                <div className="flex items-start">
+                  <AlertCircle className="w-6 h-6 text-red-600 mt-0.5 mr-3" />
+                  <div>
+                    <h4 className="text-lg font-semibold text-red-800 mb-2">Emergency Notice</h4>
+                    <p className="text-red-700 text-sm">
+                      If you are experiencing a medical emergency, please call 911 or go to your nearest emergency room immediately. 
+                      This video consultation service is not intended for emergency medical situations.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -160,8 +229,9 @@ const VideoConsultation: React.FC = () => {
           <div className="bg-white rounded-2xl shadow-xl p-12 text-center">
             <div className="animate-spin w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-6"></div>
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Connecting to {doctor.name}</h2>
-            <p className="text-gray-600">Please wait while we establish the connection...</p>
-            <div className="mt-8">
+            <p className="text-gray-600 mb-6">Please wait while we establish the connection...</p>
+            
+            <div className="bg-blue-50 rounded-lg p-4 mb-6">
               <div className="flex items-center justify-center space-x-4">
                 <img
                   src={doctor.image}
@@ -174,6 +244,13 @@ const VideoConsultation: React.FC = () => {
                 </div>
               </div>
             </div>
+            
+            <button
+              onClick={() => setCallState('waiting')}
+              className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+            >
+              Cancel
+            </button>
           </div>
         )}
 
@@ -205,7 +282,10 @@ const VideoConsultation: React.FC = () => {
               >
                 Return Home
               </button>
-              <button className="bg-gray-100 text-gray-700 px-8 py-3 rounded-lg font-semibold hover:bg-gray-200 transition-colors">
+              <button 
+                onClick={() => navigate('/doctors')}
+                className="bg-gray-100 text-gray-700 px-8 py-3 rounded-lg font-semibold hover:bg-gray-200 transition-colors"
+              >
                 Book Another Consultation
               </button>
             </div>

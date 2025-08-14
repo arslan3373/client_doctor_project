@@ -21,127 +21,137 @@ import Consultation from './pages/Consultation';
 import HealthRecords from './pages/HealthRecords';
 import Profile from './pages/Profile';
 import ProtectedRoute from './components/ProtectedRoute';
-// Layout wrapper component to include the Layout component for all routes except auth pages
-const LayoutWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isAuthPage, setIsAuthPage] = React.useState(false);
-  
-  React.useEffect(() => {
-    setIsAuthPage(['/login', '/register'].includes(window.location.pathname));
-  }, []);
-  
-  return isAuthPage ? (
-    <>{children}</>
-  ) : (
-    <Layout>
-      {children}
-    </Layout>
-  );
-};
 
 function App() {
   return (
     <Router>
       <AuthProvider>
-        <Toaster position="top-right" />
-        <LayoutWrapper>
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/" element={<Home />} />
-            <Route path="/doctors" element={<Doctors />} />
-            <Route path="/doctors/:id" element={<DoctorProfile />} />
-            <Route path="/booking/:id" element={
-              <ProtectedRoute>
-                <AppointmentBooking />
-              </ProtectedRoute>
-            } />
-            <Route path="/consultation" element={
-              <ProtectedRoute>
-                <Consultation />
-              </ProtectedRoute>
-            } />
-            <Route path="/health-records" element={
-              <ProtectedRoute allowedRoles={['patient']}>
-                <HealthRecords />
-              </ProtectedRoute>
-            } />
-            
-            {/* Video Consultation Routes */}
-            <Route path="/video-consultation" element={
-              <ProtectedRoute>
-                <VideoConsultation />
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/video-call/:roomId" element={
-              <ProtectedRoute>
-                <VideoCallPage />
-              </ProtectedRoute>
-            } />
-            
-            {/* Testing Route */}
-            <Route path="/webrtc-test" element={<WebRTCTest />} />
-            
-            {/* Auth Routes */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            
-            {/* Protected Routes */}
-            <Route element={<ProtectedRoute />}>
-              {/* Profile */}
-              <Route path="/profile" element={
-                <ProtectedRoute>
-                  <Profile />
-                </ProtectedRoute>
-              } />
-              
-              {/* Appointment Booking */}
-              <Route path="/appointment/doctor/:doctorId" element={
-                <ProtectedRoute allowedRoles={['patient']}>
-                  <AppointmentBooking />
-                </ProtectedRoute>
-              } />
-              
-              {/* Patient Routes */}
-              <Route path="/appointments" element={
-                <ProtectedRoute allowedRoles={['patient']}>
-                  <MyAppointments />
-                </ProtectedRoute>
-              } />
-              <Route path="/my-appointments" element={
-                <ProtectedRoute allowedRoles={['patient']}>
-                  <Navigate to="/appointments" replace />
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/patient/dashboard" element={
-                <ProtectedRoute allowedRoles={['patient']}>
-                  <PatientDashboard />
-                </ProtectedRoute>
-              } />
-              
-              {/* Doctor Routes */}
-              <Route path="/doctor/dashboard" element={
-                <ProtectedRoute allowedRoles={['doctor']}>
-                  <DoctorDashboard />
-                </ProtectedRoute>
-              } />
-              
-              {/* Legacy Dashboard Route - Redirect based on role */}
-              <Route path="/dashboard" element={
-                <ProtectedRoute allowedRoles={['patient', 'doctor']}>
-                  <Navigate to="/patient/dashboard" replace />
-                </ProtectedRoute>
-              } />
-            </Route>
-            
-            {/* Error Pages */}
-            <Route path="/unauthorized" element={<Unauthorized />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </LayoutWrapper>
+        <Toaster 
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#363636',
+              color: '#fff',
+            },
+            success: {
+              duration: 3000,
+              iconTheme: {
+                primary: '#4ade80',
+                secondary: '#fff',
+              },
+            },
+            error: {
+              duration: 5000,
+              iconTheme: {
+                primary: '#ef4444',
+                secondary: '#fff',
+              },
+            },
+          }}
+        />
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<Layout><Home /></Layout>} />
+          <Route path="/doctors" element={<Layout><Doctors /></Layout>} />
+          <Route path="/doctors/:id" element={<Layout><DoctorProfile /></Layout>} />
+          
+          {/* Auth Routes - No Layout */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          
+          {/* Protected Routes with Layout */}
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <Layout><Profile /></Layout>
+            </ProtectedRoute>
+          } />
+          
+          {/* Appointment Routes */}
+          <Route path="/booking/:doctorId" element={
+            <ProtectedRoute allowedRoles={['patient']}>
+              <Layout><AppointmentBooking /></Layout>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/appointments" element={
+            <ProtectedRoute allowedRoles={['patient']}>
+              <Layout><MyAppointments /></Layout>
+            </ProtectedRoute>
+          } />
+          
+          {/* Video Consultation Routes */}
+          <Route path="/consultation" element={
+            <ProtectedRoute>
+              <Layout><Consultation /></Layout>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/video-consultation" element={
+            <ProtectedRoute>
+              <Layout><VideoConsultation /></Layout>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/video-consultation/:doctorId" element={
+            <ProtectedRoute>
+              <VideoConsultation />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/video-call/:roomId" element={
+            <ProtectedRoute>
+              <VideoCallPage />
+            </ProtectedRoute>
+          } />
+          
+          {/* Health Records */}
+          <Route path="/health-records" element={
+            <ProtectedRoute allowedRoles={['patient']}>
+              <Layout><HealthRecords /></Layout>
+            </ProtectedRoute>
+          } />
+          
+          {/* Dashboard Routes */}
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <DashboardRedirect />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/patient/dashboard" element={
+            <ProtectedRoute allowedRoles={['patient']}>
+              <Layout><PatientDashboard /></Layout>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/doctor/dashboard" element={
+            <ProtectedRoute allowedRoles={['doctor']}>
+              <Layout><DoctorDashboard /></Layout>
+            </ProtectedRoute>
+          } />
+          
+          {/* Testing Route */}
+          <Route path="/webrtc-test" element={<Layout><WebRTCTest /></Layout>} />
+          
+          {/* Error Pages */}
+          <Route path="/unauthorized" element={<Layout><Unauthorized /></Layout>} />
+          <Route path="*" element={<Layout><NotFound /></Layout>} />
+        </Routes>
       </AuthProvider>
     </Router>
   );
+}
+
+// Dashboard redirect component
+const DashboardRedirect: React.FC = () => {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  
+  if (user.role === 'doctor') {
+    return <Navigate to="/doctor/dashboard" replace />;
+  } else {
+    return <Navigate to="/patient/dashboard" replace />;
+  }
 };
 
 export default App;

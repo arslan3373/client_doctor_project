@@ -1,14 +1,38 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Menu, X, User, Bell, Calendar } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Menu, X, User, Bell, Calendar, LogOut, Settings, Stethoscope } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import toast from 'react-hot-toast';
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { user, logout } = useAuth();
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const { user, logout, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    toast.success('Logged out successfully');
+    navigate('/');
+    setIsProfileMenuOpen(false);
+  };
+
+  const handleProfileClick = () => {
+    navigate('/profile');
+    setIsProfileMenuOpen(false);
+  };
+
+  const handleDashboardClick = () => {
+    if (user?.role === 'doctor') {
+      navigate('/doctor/dashboard');
+    } else {
+      navigate('/patient/dashboard');
+    }
+    setIsProfileMenuOpen(false);
+  };
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200">
+    <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
@@ -21,85 +45,121 @@ const Header: React.FC = () => {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
-            <Link to="/doctors" className="text-gray-700 hover:text-blue-600 transition-colors">
+            <Link 
+              to="/doctors" 
+              className="text-gray-700 hover:text-blue-600 transition-colors font-medium"
+            >
               Find Doctors
             </Link>
-            <Link to="/appointments" className="text-gray-700 hover:text-blue-600 transition-colors">
-              Appointments
-            </Link>
-            <Link to="/consultation" className="text-gray-700 hover:text-blue-600 transition-colors">
-              Online Consultation
-            </Link>
-            <Link to="/health-records" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
-              Health Records
-            </Link>
+            {isAuthenticated && (
+              <>
+                <Link 
+                  to="/appointments" 
+                  className="text-gray-700 hover:text-blue-600 transition-colors font-medium"
+                >
+                  My Appointments
+                </Link>
+                <Link 
+                  to="/video-consultation" 
+                  className="text-gray-700 hover:text-blue-600 transition-colors font-medium"
+                >
+                  Video Consultation
+                </Link>
+                {user?.role === 'patient' && (
+                  <Link 
+                    to="/health-records" 
+                    className="text-gray-700 hover:text-blue-600 transition-colors font-medium"
+                  >
+                    Health Records
+                  </Link>
+                )}
+              </>
+            )}
           </nav>
 
           {/* User Actions */}
           <div className="flex items-center space-x-4">
-            {user ? (
+            {isAuthenticated && user ? (
               <div className="flex items-center space-x-3">
+                {/* Notifications */}
                 <button className="relative p-2 text-gray-600 hover:text-blue-600 transition-colors">
                   <Bell className="w-5 h-5" />
                   <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
                 </button>
                 
-                <div className="relative group">
-                  <button className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100 transition-colors">
+                {/* Profile Dropdown */}
+                <div className="relative">
+                  <button 
+                    onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                    className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
                     <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                      <User className="w-5 h-5 text-blue-600" />
+                      {user.role === 'doctor' ? (
+                        <Stethoscope className="w-4 h-4 text-blue-600" />
+                      ) : (
+                        <User className="w-4 h-4 text-blue-600" />
+                      )}
                     </div>
-                    <span className="hidden md:block text-sm font-medium text-gray-700">
-                      {user.name}
-                    </span>
+                    <div className="hidden md:block text-left">
+                      <p className="text-sm font-medium text-gray-700">{user.name}</p>
+                      <p className="text-xs text-gray-500 capitalize">{user.role}</p>
+                    </div>
                   </button>
                   
-                  {/* Dropdown */}
-                  <div className="absolute right-0 top-12 w-48 bg-white rounded-lg shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                    <div className="p-2">
-                      <Link to="/profile" className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md">
+                  {/* Dropdown Menu */}
+                  {isProfileMenuOpen && (
+                    <div className="absolute right-0 top-12 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                      <button
+                        onClick={handleDashboardClick}
+                        className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                      >
+                        <Calendar className="w-4 h-4" />
+                        <span>Dashboard</span>
+                      </button>
+                      <button
+                        onClick={handleProfileClick}
+                        className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                      >
                         <User className="w-4 h-4" />
-                        <span>Profile</span>
-                      </Link>
-                      <Link to="/appointments" className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md">
+                        <span>My Profile</span>
+                      </button>
+                      <Link 
+                        to="/appointments" 
+                        className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => setIsProfileMenuOpen(false)}
+                      >
                         <Calendar className="w-4 h-4" />
                         <span>My Appointments</span>
                       </Link>
-                    </div>
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 hidden group-hover:block">
-                      <Link 
-                        to="/profile" 
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      >
-                        My Profile
-                      </Link>
-                      <Link 
-                        to="/settings" 
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      >
-                        Settings
-                      </Link>
                       <button
-                        onClick={logout}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
                       >
-                        Sign out
+                        <Settings className="w-4 h-4" />
+                        <span>Settings</span>
+                      </button>
+                      <hr className="my-1" />
+                      <button
+                        onClick={handleLogout}
+                        className="flex items-center space-x-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>Sign out</span>
                       </button>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
             ) : (
               <div className="flex items-center space-x-3">
                 <Link
                   to="/login"
-                  className="text-gray-700 hover:text-blue-600 transition-colors"
+                  className="text-gray-700 hover:text-blue-600 transition-colors font-medium"
                 >
                   Login
                 </Link>
                 <Link
                   to="/register"
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
                 >
                   Sign Up
                 </Link>
@@ -122,29 +182,77 @@ const Header: React.FC = () => {
             <div className="space-y-2">
               <Link
                 to="/doctors"
-                className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
+                className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Find Doctors
               </Link>
-              <Link
-                to="/appointments"
-                className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Appointments
-              </Link>
-              <Link
-                to="/consultation"
-                className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Online Consultation
-              </Link>
+              {isAuthenticated && (
+                <>
+                  <Link
+                    to="/appointments"
+                    className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md font-medium"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    My Appointments
+                  </Link>
+                  <Link
+                    to="/video-consultation"
+                    className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md font-medium"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Video Consultation
+                  </Link>
+                  {user?.role === 'patient' && (
+                    <Link
+                      to="/health-records"
+                      className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md font-medium"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      Health Records
+                    </Link>
+                  )}
+                  <button
+                    onClick={() => {
+                      handleDashboardClick();
+                      setIsMenuOpen(false);
+                    }}
+                    className="block w-full text-left px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md font-medium"
+                  >
+                    Dashboard
+                  </button>
+                </>
+              )}
+              {!isAuthenticated && (
+                <>
+                  <Link
+                    to="/login"
+                    className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md font-medium"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Login
+                  </Link>
+                  <Link
+                    to="/register"
+                    className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md font-medium"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Sign Up
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         )}
       </div>
+      
+      {/* Overlay for profile dropdown */}
+      {isProfileMenuOpen && (
+        <div 
+          className="fixed inset-0 z-40" 
+          onClick={() => setIsProfileMenuOpen(false)}
+        ></div>
+      )}
     </header>
   );
 };
